@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"time"
 
@@ -20,14 +19,14 @@ func main() {
 	// Fetch signatures for the program ID
 	signatures, err := fetchSignaturesForAddress(client, programID)
 	if err != nil {
-		log.Fatalf("Failed to fetch signatures: %v", err)
+		slog.Error("failed to fetch signatures for programID", "programID", programID, "err", err)
 	}
 
 	// Fetch and process transactions for each signature
 	for _, signature := range signatures {
 		tx, err := client.GetParsedTransaction(context.Background(), signature.Signature, &rpc.GetParsedTransactionOpts{})
 		if err != nil {
-			log.Printf("Failed to fetch transaction %s: %v", signature.Signature.String(), err)
+			slog.Error("Failed to fetch parsed transaction", "err", err)
 			continue
 		}
 		events, err := getTransactionEvents(programID, tx)
