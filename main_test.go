@@ -21,7 +21,7 @@ func TestBasic(t *testing.T) {
 	tx, err := client.GetParsedTransaction(context.Background(), exampleCreateHash, &rpc.GetParsedTransactionOpts{})
 	require.NoError(t, err)
 
-	events, err := getTransactionEvents(programID, tx)
+	events, err := checkCreateEvent(programID, tx)
 	require.NoError(t, err)
 
 	slog.Info("", "events", events)

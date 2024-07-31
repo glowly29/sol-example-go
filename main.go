@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
 	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
@@ -29,7 +31,7 @@ func main() {
 			slog.Error("Failed to fetch parsed transaction", "err", err)
 			continue
 		}
-		events, err := getTransactionEvents(programID, tx)
+		events, err := checkCreateEvent(programID, tx)
 		if err != nil {
 			slog.Error("Failed to fetch transaction events", "err", err)
 		}
@@ -68,48 +70,55 @@ func fetchSignaturesForAddress(client *rpc.Client, address solana.PublicKey) ([]
 	return signatures, nil
 }
 
-func getTransactionEvents(programID solana.PublicKey, txResponse *rpc.GetParsedTransactionResult) ([]*Event, error) {
+func checkCreateEvent(programID solana.PublicKey, txResponse *rpc.GetParsedTransactionResult) ([]CreateEvent, error) {
 	if txResponse == nil {
 		return nil, nil
 	}
 
-	eventPDA, _, err := solana.FindProgramAddress([][]byte{[]byte("__event_authority")}, programID)
-	if err != nil {
-		return nil, err
-	}
+	var events []CreateEvent
 
-	slog.Info("found event pda", "eventPDA", eventPDA.String())
-
-	var createInsts []*rpc.ParsedInstruction
 	for _, innerInstructions := range txResponse.Meta.InnerInstructions {
 		for _, instruction := range innerInstructions.Instructions {
-			if len(instruction.Accounts) == 1 && instruction.Accounts[0] == eventPDA {
-				createInsts = append(createInsts, instruction)
+			if instruction.ProgramId == token.ProgramID {
+				jsonData, err := instruction.Parsed.MarshalJSON()
+				if err != nil {
+					slog.Error("Failed to marshal instruction", "err", err)
+					continue
+				}
+				var mintoInfo MintToInfo
+				if err = json.Unmarshal(jsonData, &mintoInfo); err != nil {
+					slog.Error("Failed to unmarshal instruction", "err", err)
+					continue
+				}
+				if mintoInfo.Info.Mint == "" || mintoInfo.Info.Account == "" || mintoInfo.Info.Amount == "" {
+					continue
+				}
+				events = append(events, CreateEvent{
+					// Name:   "",
+					// Symbol: "",
+					// Uri:    "",
+					Mint:        mintoInfo.Info.Mint,
+					TotalSupply: mintoInfo.Info.Amount,
+				})
 			}
 		}
-	}
-
-	var events []*Event
-	for _, instruction := range createInsts {
-		slog.Info("found event create", "data", instruction.Data.String())
-		// eventData := base64.StdEncoding.EncodeToString(ixData[8:])
-		// event, err := decodeEvent(eventData)
-		// if err != nil {
-		// 	slog.Error("Error decoding event:", "err", err)
-		// 	continue
-		// }
-		// if event != nil {
-		// 	events = append(events, event)
-		// }
 	}
 
 	return events, nil
 }
 
-func decodeEvent(data string) (*Event, error) {
-	return &Event{Data: data}, nil
+type CreateEvent struct {
+	Name        string
+	Symbol      string
+	Uri         string
+	Mint        string
+	TotalSupply string
 }
 
-type Event struct {
-	Data string
+type MintToInfo struct {
+	Info struct {
+		Account string `json:"account"`
+		Amount  string `json:"amount"`
+		Mint    string `json:"mint"`
+	} `json:"info"`
 }
