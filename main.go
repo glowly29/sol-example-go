@@ -31,7 +31,7 @@ func main() {
 			slog.Error("Failed to fetch parsed transaction", "err", err)
 			continue
 		}
-		events, err := checkCreateEvent(programID, tx)
+		events, err := checkCreateEvent(client, tx)
 		if err != nil {
 			slog.Error("Failed to fetch transaction events", "err", err)
 		}
@@ -74,7 +74,7 @@ func fetchSignaturesForAddress(client *rpc.Client, address solana.PublicKey) ([]
 	return signatures, nil
 }
 
-func checkCreateEvent(programID solana.PublicKey, txResponse *rpc.GetParsedTransactionResult) ([]CreateEvent, error) {
+func checkCreateEvent(client *rpc.Client, txResponse *rpc.GetParsedTransactionResult) ([]CreateEvent, error) {
 	if txResponse == nil {
 		return nil, nil
 	}
@@ -97,6 +97,12 @@ func checkCreateEvent(programID solana.PublicKey, txResponse *rpc.GetParsedTrans
 				if mintoInfo.Info.Mint == "" || mintoInfo.Info.Account == "" || mintoInfo.Info.Amount == "" {
 					continue
 				}
+				mintAccount, err := client.GetAccountInfo(context.Background(), solana.MustPublicKeyFromBase58(mintoInfo.Info.Mint))
+				if err != nil || mintAccount == nil {
+					// slog.Error("ignore this account because not initialized", "err", err)
+					continue
+				}
+
 				events = append(events, CreateEvent{
 					// Name:   "",
 					// Symbol: "",
