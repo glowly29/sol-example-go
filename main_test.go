@@ -16,7 +16,7 @@ var (
 )
 
 func TestBasic(t *testing.T) {
-	client := rpc.New(rpc.DevNet_RPC)
+	client := rpc.New("https://rpc.ankr.com/solana_devnet")
 
 	tx, err := client.GetParsedTransaction(context.Background(), exampleCreateHash, &rpc.GetParsedTransactionOpts{})
 	require.NoError(t, err)

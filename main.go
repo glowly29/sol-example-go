@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	client := rpc.New(rpc.DevNet_RPC)
+	client := rpc.New("https://rpc.ankr.com/solana_devnet")
 
 	// Fetch signatures for the program ID
 	signatures, err := fetchSignaturesForAddress(client, programID)
@@ -35,7 +35,11 @@ func main() {
 		if err != nil {
 			slog.Error("Failed to fetch transaction events", "err", err)
 		}
-		_ = events
+		if len(events) > 0 {
+			for _, event := range events {
+				slog.Info("Found event", "event", event)
+			}
+		}
 	}
 }
 
